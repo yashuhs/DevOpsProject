@@ -1,9 +1,9 @@
-name: CI/CD Pipeline for Go App
+name: CI/CD for Go Web App
 
 on:
   push:
     branches:
-      - main  # or your default branch
+      - main  # or your desired branch
 
 jobs:
   deploy:
@@ -13,31 +13,24 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v3
 
-    - name: Log in to Docker Hub
-      uses: docker/login-action@v2
-      with:
-        username: ${{ secrets.DOCKER_USERNAME }}
-        password: ${{ secrets.DOCKER_PASSWORD }}
+    - name: Log in to DockerHub
+      run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
 
     - name: Build and push Docker image
-      uses: docker/build-push-action@v4
-      with:
-        context: .
-        push: true
-        tags: ${{ secrets.DOCKER_USERNAME }}/go-web-app:latest
-
-    - name: Set up kubectl
-      uses: azure/setup-kubectl@v3
-      with:
-        version: 'latest'
-
-    - name: Setup kubeconfig
       run: |
-        echo "${{ secrets.KUBE_CONFIG_DATA }}" | base64 --decode > kubeconfig.yaml
-        export KUBECONFIG=$PWD/kubeconfig.yaml
+        docker build -t pranavpk0107/microdegree:latest .
+        docker push pranavpk0107/microdegree:latest
+
+    - name: Set up Kubeconfig
+      run: |
+        mkdir -p $HOME/.kube
+        echo "${{ secrets.KUBE_CONFIG_DATA }}" | base64 -d > $HOME/.kube/config
 
     - name: Deploy to Kubernetes
       run: |
         kubectl apply -f k8s/deployment.yaml
         kubectl apply -f k8s/service.yaml
 
+    - name: Check deployment rollout status
+      run: |
+        kubectl rollout status deployment/go-web-app
